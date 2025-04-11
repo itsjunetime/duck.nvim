@@ -3,7 +3,9 @@ M.ducks_list = {}
 local conf = {character="🦆", speed=10, width=2, height=1, color="none", blend=100}
 
 -- TODO: a mode to wreck the current buffer?
-local waddle = function(duck, speed)
+local waddle
+local hatch_location
+waddle = function(character, duck, speed)
     local timer = vim.loop.new_timer()
     local new_duck = { name = duck, timer = timer }
     table.insert(M.ducks_list, new_duck)
@@ -43,22 +45,31 @@ local waddle = function(duck, speed)
             config["row"] = row + 0.5 * s
             config["col"] = col + 1 * c
 
-            vim.api.nvim_win_set_config(duck, config)
+            local status, err = pcall(function() vim.api.nvim_win_set_config(duck, config) end)
+
+            if not status then
+                local _, _ = pcall(function() M.cook() end)
+                hatch_location(character, speed, color, 'editor', row, col)
+            end
         end
     end))
 end
 
-M.hatch = function(character, speed, color)
+hatch_location = function(character, speed, color, relative, row, col)
     local buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_lines(buf , 0, 1, true , {character or conf.character})
+    vim.api.nvim_buf_set_lines(buf , 0, 1, true, {character})
 
     local duck = vim.api.nvim_open_win(buf, false, {
-        relative='cursor', style='minimal', row=1, col=1, width=conf.width, height=conf.height
+        relative=relative, style='minimal', row=row, col=col, width=conf.width, height=conf.height, focusable=false, border={""}
     })
     vim.cmd("hi Duck"..duck.." guifg=" .. (color or conf.color) .. " guibg=none blend=" .. conf.blend)
     vim.api.nvim_win_set_option(duck, 'winhighlight', 'Normal:Duck'..duck)
 
-    waddle(duck, speed)
+    waddle(character, duck, speed)
+end
+
+M.hatch = function(character, speed, color)
+    hatch_location(character or conf.character, speed, color, 'cursor', 1, 1)
 end
 
 M.cook = function()
